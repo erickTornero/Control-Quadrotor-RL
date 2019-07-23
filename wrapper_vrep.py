@@ -7,11 +7,12 @@ import numpy as np
 from utility import GetFlatRotationMatrix
 # From environment
 import vrep
+from typing import NoReturn
 
 # Environment to pass the target position just on the initial state
 class VREPQuad(gym.Env):
 
-    def __init__(self, ip='127.0.0.1', port=19999, envname='Quadricopter_base', targetpos=np.zeros(3, dtype=np.float32)):
+    def __init__(self, ip='127.0.0.1', port=19997, envname='Quadricopter', targetpos=np.zeros(3, dtype=np.float32)):
         super(VREPQuad, self).__init__()
         # Initialize vrep
         self.envname            =   envname
@@ -24,6 +25,11 @@ class VREPQuad(gym.Env):
         else:
             raise ConnectionError("Can't Connect with the envinronment at IP:{}, Port:{}".format(ip, port))
         
+        pass
+
+        if not self._get_boolparam(vrep.sim_boolparam_headless):
+            self._clear_gui()
+
         r, self.quad_handler         =   vrep.simxGetObjectHandle(clientID, self.envname, vrep.simx_opmode_oneshot_wait)
 
         print(r, self.quad_handler)
@@ -72,15 +78,88 @@ class VREPQuad(gym.Env):
 
     def reset(self):
         # Put code when reset here
-        pass
+        #r = vrep.simxSetObjectPosition(self.clientID, self.quad_handler, -1, np.array([0.0,0.0,0.5]), vrep.simx_opmode_oneshot_wait)
+        #r = vrep.simxCallScriptFunction(self.clientID, 'Quadricopter_target', vrep.sim_scripttype_childscript, 'sysCall_custom_reset', np.array([]), np.array([]), np.array([]), bytearray(), vrep.simx_opmode_blocking)
+        # pass
+        vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
+        while True:
+            e = vrep.simxGetInMessageInfo(self.clientID, vrep.simx_headeroffset_server_state)
+            still_running = e[1] & 1
+            print(e)
+            if not still_running:
+                break
+        
+        # Reset quadrotor
+        r, self.quad_handler         =   vrep.simxGetObjectHandle(self.clientID, self.envname, vrep.simx_opmode_oneshot_wait)
+        # start pose
+
+        # Start simulation
+        print('Starting simulation')
+        #vrep.simxSynchronousTrigger(self.clientID)
+        #vrep.simxGetPingTime(self.clientID)
+        self.startsimulation()
+        #vrep.simxSynchronous(self.clientID, True)
+        #e = vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
+        #print(e)
+        # get observation
+
+
+        #vrep.simxSynchronousTrigger(self.clientID)
+        #vrep.simxGetPingTime(self.clientID)
+        #vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
+#
+        #vrep.simxSynchronous(self.clientID, True)
+        #vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
+        print('s')
 
     def render(self, close=False):
         # Put code if it is necessary to render
         pass
+
+    def startsimulation(self):
+        if self.clientID != -1:
+            self._set_floatparam(vrep.sim_floatparam_simulation_time_step, 0.05)
+            #vrep.simxSynchronous(self.clientID, True)
+            e = vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
+
+            self._set_boolparam(vrep.sim_boolparam_threaded_rendering_enabled, True)
+            print(e)
+        else:
+            raise ConnectionError('Any conection has been done')
     def __del__(self):
         print('Exit connection')
         vrep.simxFinish(-1)
 
+    def _set_floatparam(self, parameter: int, value: float) ->NoReturn:
+        res =   vrep.simxSetFloatingParameter(self.clientID, parameter, value, vrep.simx_opmode_oneshot)
+        print(res)
+        assert (res == vrep.simx_return_ok or res == vrep.simx_return_novalue_flag), ('Could not set float parameters!')
+
+    def _set_boolparam(self, parameter: int, value: bool) -> NoReturn:
+        """Sets boolean parameter of V-REP simulation.
+        Args:
+            parameter: Parameter to be set.
+            value: Boolean value to be set.
+        """
+        res = vrep.simxSetBooleanParameter(self.clientID, parameter, value,
+                                           vrep.simx_opmode_oneshot)
+        assert (res == vrep.simx_return_ok or res == vrep.simx_return_novalue_flag), (
+            'Could not set boolean parameter!')
+
+    def _clear_gui(self) -> NoReturn:
+        """Clears GUI with unnecessary elements like model hierarchy, library browser and
+        console. Also this method enables threaded rendering.
+        """
+        self._set_boolparam(vrep.sim_boolparam_hierarchy_visible, False)
+        self._set_boolparam(vrep.sim_boolparam_console_visible, False)
+        self._set_boolparam(vrep.sim_boolparam_browser_visible, False)
+
+    def _get_boolparam(self, parameter: int) -> bool:
+        res, value = vrep.simxGetBooleanParameter(self.clientID, parameter,
+                                                  vrep.simx_opmode_oneshot)
+        assert (res == vrep.simx_return_ok or res == vrep.simx_return_novalue_flag), (
+            'Could not get boolean parameter!')
+        return value
 
 ## Test
 
@@ -89,6 +168,6 @@ vrepX = VREPQuad(ip='192.168.0.36',port=19999)
 import time
 time.sleep(1)
 
-ob, rw =    vrepX.step(np.array([4.4, 8, 4.3, 8])) 
+ob, rw =    vrepX.step(np.array([4.4, 4, 4.3, 4])) 
 print('observation> ', ob)
 print('reward>', rw)
