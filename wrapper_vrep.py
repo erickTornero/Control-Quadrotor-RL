@@ -81,14 +81,15 @@ class VREPQuad(gym.Env):
         #r = vrep.simxSetObjectPosition(self.clientID, self.quad_handler, -1, np.array([0.0,0.0,0.5]), vrep.simx_opmode_oneshot_wait)
         #r = vrep.simxCallScriptFunction(self.clientID, 'Quadricopter_target', vrep.sim_scripttype_childscript, 'sysCall_custom_reset', np.array([]), np.array([]), np.array([]), bytearray(), vrep.simx_opmode_blocking)
         # pass
-        vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
-        while True:
-            e = vrep.simxGetInMessageInfo(self.clientID, vrep.simx_headeroffset_server_state)
-            still_running = e[1] & 1
-            print(e)
-            if not still_running:
-                break
-        
+        vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_oneshot)
+        ## while True:
+        ##     e = vrep.simxGetInMessageInfo(self.clientID, vrep.simx_headeroffset_server_state)
+        ##     still_running = e[1] & 1
+        ##     print(e)
+        ##     if not still_running:
+        ##         break
+        ##
+ 
         # Reset quadrotor
         r, self.quad_handler         =   vrep.simxGetObjectHandle(self.clientID, self.envname, vrep.simx_opmode_oneshot_wait)
         # start pose
@@ -104,8 +105,8 @@ class VREPQuad(gym.Env):
         # get observation
 
 
-        #vrep.simxSynchronousTrigger(self.clientID)
-        #vrep.simxGetPingTime(self.clientID)
+        vrep.simxSynchronousTrigger(self.clientID)
+        vrep.simxGetPingTime(self.clientID)
         #vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
 #
         #vrep.simxSynchronous(self.clientID, True)
@@ -119,7 +120,7 @@ class VREPQuad(gym.Env):
     def startsimulation(self):
         if self.clientID != -1:
             self._set_floatparam(vrep.sim_floatparam_simulation_time_step, 0.05)
-            #vrep.simxSynchronous(self.clientID, True)
+            vrep.simxSynchronous(self.clientID, True)
             e = vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
 
             self._set_boolparam(vrep.sim_boolparam_threaded_rendering_enabled, True)
