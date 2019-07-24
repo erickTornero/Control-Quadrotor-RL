@@ -8,6 +8,7 @@ from utility import GetFlatRotationMatrix
 # From environment
 import vrep
 from typing import NoReturn
+import time
 
 # Environment to pass the target position just on the initial state
 class VREPQuad(gym.Env):
@@ -89,6 +90,7 @@ class VREPQuad(gym.Env):
         ##     if not still_running:
         ##         break
         ##
+        time.sleep(3.0)
  
         # Reset quadrotor
         r, self.quad_handler         =   vrep.simxGetObjectHandle(self.clientID, self.envname, vrep.simx_opmode_oneshot_wait)
@@ -111,7 +113,7 @@ class VREPQuad(gym.Env):
 #
         #vrep.simxSynchronous(self.clientID, True)
         #vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
-        print('s')
+        #print('s')
 
     def render(self, close=False):
         # Put code if it is necessary to render
