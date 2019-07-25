@@ -24,6 +24,10 @@ class VREPQuad(gym.Env):
             self.clientID       =   clientID
             self.targetpos      =   targetpos
             self.max_distance   =   maxdist   
+            self.counterclose   =   0
+            self.distance_close =   0.5
+            self.maxncounter    =   10
+            #self.prev_pos
         else:
             raise ConnectionError("Can't Connect with the envinronment at IP:{}, Port:{}".format(ip, port))
         
@@ -79,13 +83,17 @@ class VREPQuad(gym.Env):
         #rowdata         =   np.append(rowdata, velocity[1])
         #rowdata         =   np.append(rowdata, velocity[2])
 
-
+        convergence_dist = position-self.prev_pos
+        self.prev_pos   =   position
+        diff_close      =   np.sqrt((convergence_dist * convergence_dist).sum())
+        self.counterclose = (self.counterclose + 1) if diff_close < self.distance_close else 0
 
         reward          =   self.targetpos - position
         distance        =   np.sqrt((reward * reward).sum())
         reward          =   20.0 - distance 
         
-        done            =   distance > self.max_distance
+
+        done            =   distance > self.max_distance or self.counterclose > self.maxncounter
 
         return (rowdata, reward, done, dict())
 
@@ -129,6 +137,7 @@ class VREPQuad(gym.Env):
         #vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
         #print('s')
         rdata = self._get_observation_state()
+        self.prev_pos = np.asarray(rdata[1])
         return self._appendtuples_(rdata)
 
     def render(self, close=False):
@@ -193,7 +202,7 @@ class VREPQuad(gym.Env):
         #rowdata         =   np.append(rowdata, velocity[2])
 
 
-        return (RotMat, position, velocity[1], velocity[2])        
+        return (RotMat, np.asarray(position), np.asarray(velocity[1]), np.asarray(velocity[2]))        
 
     #def _appendtuples_(self, rotmat, pos, angvel, linvel):
     def _appendtuples_(self, xdat):
