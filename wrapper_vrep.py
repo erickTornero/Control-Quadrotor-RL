@@ -1,5 +1,6 @@
 # This will envolve the environment VREP quadrotor by an openai gym
-
+# Command to run the vrep:
+# ./vrep -gREMOTEAPISERVERSERVICE_19999_FALSE_TRUE
 import gym
 from gym import spaces
 import numpy as np
@@ -25,8 +26,9 @@ class VREPQuad(gym.Env):
             self.targetpos      =   targetpos
             self.max_distance   =   maxdist   
             self.counterclose   =   0
-            self.distance_close =   0.5
-            self.maxncounter    =   10
+            self.distance_close =   20.0
+            self.maxncounter    =   20
+            self.timestep       =   0
             #self.prev_pos
         else:
             raise ConnectionError("Can't Connect with the envinronment at IP:{}, Port:{}".format(ip, port))
@@ -52,7 +54,7 @@ class VREPQuad(gym.Env):
         #self.propsignal3 = 'speedprop3'
         #self.propsignal4 = 'speedprop4'
 
-    def step(self, action):
+    def step(self, action:np.ndarray):
         # assume of action be an np.array of dimension (4,)
         # Act!
         for act, name in zip(action, self.propsignal):
@@ -69,7 +71,7 @@ class VREPQuad(gym.Env):
 
         ## Get states
         rotmat, position, angvel, linvel =   self._get_observation_state()
-        print(rotmat, position, angvel, linvel)
+        #print(rotmat, position, angvel, linvel)
 
         rowdata         =   self._appendtuples_((rotmat, position, angvel, linvel))
         #_, position        =   vrep.simxGetObjectPosition(self.clientID,    self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
@@ -90,11 +92,13 @@ class VREPQuad(gym.Env):
 
         reward          =   self.targetpos - position
         distance        =   np.sqrt((reward * reward).sum())
-        reward          =   20.0 - distance 
+        reward          =   -distance 
         
 
         done            =   distance > self.max_distance or self.counterclose > self.maxncounter
 
+        if done:
+            print('Counter-close: {}, \tFrom target: {}'.format(self.counterclose, distance))
         return (rowdata, reward, done, dict())
 
         # Compute The reward function
@@ -138,6 +142,8 @@ class VREPQuad(gym.Env):
         #print('s')
         rdata = self._get_observation_state()
         self.prev_pos = np.asarray(rdata[1])
+        # Reset parameters
+        self.counterclose   =   0
         return self._appendtuples_(rdata)
 
     def render(self, close=False):
@@ -209,14 +215,13 @@ class VREPQuad(gym.Env):
         x   =   np.empty(0, dtype=np.float32)
         for dt in xdat:
             x   =   np.append(x, dt, axis=0)
-        #x   =   np.append(x, pos,    axis=0)
-        #x   =   np.append(x, angvel, axis=0)
-        #x   =   np.append(x, linvel, axis=0)
 
         return x
     
     def close(self):
         print('Exit connection')
+        vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
+        time.sleep(2.5)
         vrep.simxFinish(-1)
 
 ## Test
