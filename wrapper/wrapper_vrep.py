@@ -29,6 +29,8 @@ class VREPQuad(gym.Env):
             self.distance_close =   0.01
             self.maxncounter    =   20
             self.timestep       =   0
+            self.cumulative_rw  =   0.0
+            self.episod         =   0
             #self.prev_pos
         else:
             raise ConnectionError("Can't Connect with the envinronment at IP:{}, Port:{}".format(ip, port))
@@ -43,7 +45,7 @@ class VREPQuad(gym.Env):
         print(r, self.quad_handler)
         # Define gym variables
 
-        self.action_space       =   spaces.Box(low=0, high=1, shape=(4,), dtype=np.float32)
+        self.action_space       =   spaces.Box(low=0, high=1.0, shape=(4,), dtype=np.float32)
 
         self.observation_space  =   spaces.Box(low=-1000.0, high=1000.0, shape=(18,), dtype=np.float32)
 
@@ -57,6 +59,7 @@ class VREPQuad(gym.Env):
     def step(self, action:np.ndarray):
         # assume of action be an np.array of dimension (4,)
         # Act!
+        action  =   action * 100.0
         for act, name in zip(action, self.propsignal):
             vrep.simxSetFloatSignal(self.clientID, name, act, vrep.simx_opmode_streaming)
         
@@ -94,13 +97,19 @@ class VREPQuad(gym.Env):
         reward          =   self.targetpos - position
         distance        =   np.sqrt((reward * reward).sum())
         reward          =   -distance 
+        self.cumulative_rw  +=  reward
         
-
-        done            =   distance > self.max_distance or self.counterclose > self.maxncounter
+        #print(action)
+        done            =   True if self.timestep >= 250 else False
+        
+        #done            =   distance > self.max_distance or self.counterclose > self.maxncounter
 
         if done:
-            print('Counter-close: {}, \tFrom target: {}'.format(self.counterclose, distance))
+            self.episod += 1
+            print('Episode:>\t', self.episod)
+            print('From target: {}'.format(distance))
             print('timesteps> ',self.timestep)
+            print('Cum_rw>:', self.cumulative_rw)
         return (rowdata, reward, done, dict())
 
         # Compute The reward function
@@ -147,9 +156,11 @@ class VREPQuad(gym.Env):
         # Reset parameters
         self.counterclose   =   0
         self.timestep       =   0
+        self.cumulative_rw  =   0.0
         return self._appendtuples_(rdata)
 
     def render(self, close=False):
+        print('Trying to render')
         # Put code if it is necessary to render
         pass
 
@@ -163,13 +174,13 @@ class VREPQuad(gym.Env):
             print(e)
         else:
             raise ConnectionError('Any conection has been done')
-    #def __del__(self):
-    #    print('Exit connection')
-    #    vrep.simxFinish(-1)
+    def __del__(self):
+        print('Remove instant')
+        self.close()
 
     def _set_floatparam(self, parameter: int, value: float) ->NoReturn:
         res =   vrep.simxSetFloatingParameter(self.clientID, parameter, value, vrep.simx_opmode_oneshot)
-        print(res)
+        #print(res)
         assert (res == vrep.simx_return_ok or res == vrep.simx_return_novalue_flag), ('Could not set float parameters!')
 
     def _set_boolparam(self, parameter: int, value: bool) -> NoReturn:
@@ -246,7 +257,7 @@ def TestEnv():
     env.close()
 
 
-TestEnv()
+#TestEnv()
 #vrepX = VREPQuad(ip='192.168.0.36',port=19999)
 #
 #import time
