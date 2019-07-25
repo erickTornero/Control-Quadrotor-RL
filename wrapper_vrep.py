@@ -219,11 +219,12 @@ def TestEnv():
         done = False
         cum_rw = 0.0
         while not done:
-            act_ = np.random.uniform(0.0, 8.0, 4)
+            act_ = np.random.uniform(6.0, 8.0, 4)
             ob, rw, done, info = env.step(act_)
-            cum_rw = cum_rw + cum_rw
+            #print(rw)
+            cum_rw = cum_rw + rw
 
-        print(cum_rw)
+        print('Reward>', cum_rw)
     
     env.close()
 
