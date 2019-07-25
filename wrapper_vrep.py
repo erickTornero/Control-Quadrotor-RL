@@ -13,7 +13,7 @@ import time
 # Environment to pass the target position just on the initial state
 class VREPQuad(gym.Env):
 
-    def __init__(self, ip='127.0.0.1', port=19997, envname='Quadricopter', targetpos=np.zeros(3, dtype=np.float32)):
+    def __init__(self, ip='127.0.0.1', port=19997, envname='Quadricopter', targetpos=np.zeros(3, dtype=np.float32), maxdist = 300.0):
         super(VREPQuad, self).__init__()
         # Initialize vrep
         self.envname            =   envname
@@ -23,6 +23,7 @@ class VREPQuad(gym.Env):
             print('Connection Established Successfully')
             self.clientID       =   clientID
             self.targetpos      =   targetpos
+            self.max_distance   =   maxdist   
         else:
             raise ConnectionError("Can't Connect with the envinronment at IP:{}, Port:{}".format(ip, port))
         
@@ -54,26 +55,39 @@ class VREPQuad(gym.Env):
             vrep.simxSetFloatSignal(self.clientID, name, act, vrep.simx_opmode_streaming)
         
         #vrep.simxSetFloatSignal(self.clientID, self.propsignal1)
+        # sincronyze
+        vrep.simxSynchronousTrigger(self.clientID)
+        vrep.simxGetPingTime(self.clientID)
+        
         # Put code here:
 
         ## Do an action to environment
 
         ## Get states
-        _, position        =   vrep.simxGetObjectPosition(self.clientID,    self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
-        orientation     =   vrep.simxGetObjectOrientation(self.clientID, self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
-        velocity        =   vrep.simxGetObjectVelocity(self.clientID,    self.quad_handler, vrep.simx_opmode_oneshot_wait)
-        quaternion      =   vrep.simxGetObjectQuaternion(self.clientID,  self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
+        rotmat, position, angvel, linvel =   self._get_observation_state()
+        print(rotmat, position, angvel, linvel)
 
-        # Flat and join states!
-        RotMat          =   GetFlatRotationMatrix(orientation[1])
-        rowdata         =   np.append(RotMat, position)
-        rowdata         =   np.append(rowdata, velocity[1])
-        rowdata         =   np.append(rowdata, velocity[2])
+        rowdata         =   self._appendtuples_((rotmat, position, angvel, linvel))
+        #_, position        =   vrep.simxGetObjectPosition(self.clientID,    self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
+        #orientation     =   vrep.simxGetObjectOrientation(self.clientID, self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
+        #velocity        =   vrep.simxGetObjectVelocity(self.clientID,    self.quad_handler, vrep.simx_opmode_oneshot_wait)
+        #quaternion      =   vrep.simxGetObjectQuaternion(self.clientID,  self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
+#
+        ## Flat and join states!
+        #RotMat          =   GetFlatRotationMatrix(orientation[1])
+        #rowdata         =   np.append(RotMat, position)
+        #rowdata         =   np.append(rowdata, velocity[1])
+        #rowdata         =   np.append(rowdata, velocity[2])
 
-        reward  =   self.targetpos - position
-        reward  =   20.0 - np.sqrt((reward * reward).sum()) 
+
+
+        reward          =   self.targetpos - position
+        distance        =   np.sqrt((reward * reward).sum())
+        reward          =   20.0 - distance 
         
-        return (rowdata, reward)
+        done            =   distance > self.max_distance
+
+        return (rowdata, reward, done, dict())
 
         # Compute The reward function
 
@@ -114,6 +128,8 @@ class VREPQuad(gym.Env):
         #vrep.simxSynchronous(self.clientID, True)
         #vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
         #print('s')
+        rdata = self._get_observation_state()
+        return self._appendtuples_(rdata)
 
     def render(self, close=False):
         # Put code if it is necessary to render
@@ -129,9 +145,9 @@ class VREPQuad(gym.Env):
             print(e)
         else:
             raise ConnectionError('Any conection has been done')
-    def __del__(self):
-        print('Exit connection')
-        vrep.simxFinish(-1)
+    #def __del__(self):
+    #    print('Exit connection')
+    #    vrep.simxFinish(-1)
 
     def _set_floatparam(self, parameter: int, value: float) ->NoReturn:
         res =   vrep.simxSetFloatingParameter(self.clientID, parameter, value, vrep.simx_opmode_oneshot)
@@ -163,14 +179,61 @@ class VREPQuad(gym.Env):
         assert (res == vrep.simx_return_ok or res == vrep.simx_return_novalue_flag), (
             'Could not get boolean parameter!')
         return value
+    
+    def _get_observation_state(self):
+        _, position     =   vrep.simxGetObjectPosition(self.clientID,    self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
+        orientation     =   vrep.simxGetObjectOrientation(self.clientID, self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
+        velocity        =   vrep.simxGetObjectVelocity(self.clientID,    self.quad_handler, vrep.simx_opmode_oneshot_wait)
+        quaternion      =   vrep.simxGetObjectQuaternion(self.clientID,  self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
+
+        # Flat and join states!
+        RotMat          =   GetFlatRotationMatrix(orientation[1])
+        #rowdata         =   np.append(RotMat, position)
+        #rowdata         =   np.append(rowdata, velocity[1])
+        #rowdata         =   np.append(rowdata, velocity[2])
+
+
+        return (RotMat, position, velocity[1], velocity[2])        
+
+    #def _appendtuples_(self, rotmat, pos, angvel, linvel):
+    def _appendtuples_(self, xdat):
+        x   =   np.empty(0, dtype=np.float32)
+        for dt in xdat:
+            x   =   np.append(x, dt, axis=0)
+        #x   =   np.append(x, pos,    axis=0)
+        #x   =   np.append(x, angvel, axis=0)
+        #x   =   np.append(x, linvel, axis=0)
+
+        return x
+    
+    def close(self):
+        print('Exit connection')
+        vrep.simxFinish(-1)
 
 ## Test
+def TestEnv():
+    env = VREPQuad(ip='192.168.0.36', port=19999)
 
-vrepX = VREPQuad(ip='192.168.0.36',port=19999)
+    for ep in range(10):
+        env.reset()
+        done = False
+        cum_rw = 0.0
+        while not done:
+            act_ = np.random.uniform(0.0, 8.0, 4)
+            ob, rw, done, info = env.step(act_)
+            cum_rw = cum_rw + cum_rw
 
-import time
-time.sleep(1)
+        print(cum_rw)
+    
+    env.close()
 
-ob, rw =    vrepX.step(np.array([4.4, 4, 4.3, 4])) 
-print('observation> ', ob)
-print('reward>', rw)
+
+TestEnv()
+#vrepX = VREPQuad(ip='192.168.0.36',port=19999)
+#
+#import time
+#time.sleep(1)
+#
+#ob, rw =    vrepX.step(np.array([4.4, 4, 4.3, 4])) 
+#print('observation> ', ob)
+#print('reward>', rw)
