@@ -15,9 +15,11 @@ n_cpu   =   2
 env     =   SubprocVecEnv([lambda: VREPQuad(ip='192.168.0.36', port=19999) for i in range(1)])
 print(env)
 
-model   =   PPO2(MlpPolicy, env, verbose=1, learning_rate=1e-3)
-model.learn(total_timesteps=100)
+model   =   PPO2(MlpPolicy, env, verbose=1, learning_rate=1e-3, n_steps=1024)
+model.learn(total_timesteps=7500000)
 model.save('ppo2_quad')
+#if TRAINING==True:
+#model = PPO2.load('ppo2_quad')
 
 obs =   env.reset()
 

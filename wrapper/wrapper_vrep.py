@@ -96,11 +96,13 @@ class VREPQuad(gym.Env):
 
         reward          =   self.targetpos - position
         distance        =   np.sqrt((reward * reward).sum())
-        reward          =   -distance 
+        reward          =   4.0 -1.25 * distance 
         self.cumulative_rw  +=  reward
+
+        #print(reward)
         
         #print(action)
-        done            =   True if self.timestep >= 250 else False
+        done            =   (True if self.timestep >= 250 else False) | (distance > 3.2)
         
         #done            =   distance > self.max_distance or self.counterclose > self.maxncounter
 
@@ -143,7 +145,6 @@ class VREPQuad(gym.Env):
         #print(e)
         # get observation
 
-
         vrep.simxSynchronousTrigger(self.clientID)
         vrep.simxGetPingTime(self.clientID)
         #vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
@@ -166,7 +167,7 @@ class VREPQuad(gym.Env):
 
     def startsimulation(self):
         if self.clientID != -1:
-            self._set_floatparam(vrep.sim_floatparam_simulation_time_step, 0.05)
+            self._set_floatparam(vrep.sim_floatparam_simulation_time_step, 0.01)
             vrep.simxSynchronous(self.clientID, True)
             e = vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
 
