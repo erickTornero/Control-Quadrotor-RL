@@ -11,6 +11,10 @@ import vrep
 from typing import NoReturn
 import time
 
+# if debug
+#from tensorboardX import SummaryWriter
+#writer  =   SummaryWriter()
+
 # Environment to pass the target position just on the initial state
 class VREPQuad(gym.Env):
 
@@ -112,6 +116,8 @@ class VREPQuad(gym.Env):
             print('From target: {}'.format(distance))
             print('timesteps> ',self.timestep)
             print('Cum_rw>:', self.cumulative_rw)
+            #writer.add_scalar('data/eprw', self.cumulative_rw, self.episod)
+            #writer.add_scalar('data/dist_from_targ', distance, self.episod)
         return (rowdata, reward, done, dict())
 
         # Compute The reward function
@@ -237,6 +243,7 @@ class VREPQuad(gym.Env):
         print('Exit connection')
         vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
         time.sleep(2.5)
+        #writer.close()
         vrep.simxFinish(-1)
 
 ## Test
