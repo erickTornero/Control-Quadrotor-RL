@@ -44,6 +44,8 @@ class VREPQuad(gym.Env):
         if not self._get_boolparam(vrep.sim_boolparam_headless):
             self._clear_gui()
 
+        # Set signal debug:
+        vrep.simxSetIntegerSignal(self.clientID, 'signal_debug', 1337, vrep.simx_opmode_oneshot)
         r, self.quad_handler         =   vrep.simxGetObjectHandle(clientID, self.envname, vrep.simx_opmode_oneshot_wait)
 
         print(r, self.quad_handler)
@@ -127,7 +129,7 @@ class VREPQuad(gym.Env):
         #r = vrep.simxSetObjectPosition(self.clientID, self.quad_handler, -1, np.array([0.0,0.0,0.5]), vrep.simx_opmode_oneshot_wait)
         #r = vrep.simxCallScriptFunction(self.clientID, 'Quadricopter_target', vrep.sim_scripttype_childscript, 'sysCall_custom_reset', np.array([]), np.array([]), np.array([]), bytearray(), vrep.simx_opmode_blocking)
         # pass
-        vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_oneshot)
+        vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
         ## while True:
         ##     e = vrep.simxGetInMessageInfo(self.clientID, vrep.simx_headeroffset_server_state)
         ##     still_running = e[1] & 1
@@ -135,8 +137,16 @@ class VREPQuad(gym.Env):
         ##     if not still_running:
         ##         break
         ##
-        time.sleep(3.0)
- 
+        #time.sleep(3.0)
+        try:
+            while True:
+                vrep.simxGetIntegerSignal(self.clientID, 'signal_debug', vrep.simx_opmode_blocking)
+                e   =   vrep.simxGetInMessageInfo(self.clientID, vrep.simx_headeroffset_server_state)
+                still_running = e[1] & 1
+                if not still_running:
+                    break
+        except: pass
+
         # Reset quadrotor
         r, self.quad_handler         =   vrep.simxGetObjectHandle(self.clientID, self.envname, vrep.simx_opmode_oneshot_wait)
         # start pose
@@ -241,6 +251,7 @@ class VREPQuad(gym.Env):
     
     def close(self):
         print('Exit connection')
+        vrep.simxClearIntegerSignal(self.clientID, 'signal_debug', vrep.simx_opmode_blocking)
         vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
         time.sleep(2.5)
         #writer.close()
