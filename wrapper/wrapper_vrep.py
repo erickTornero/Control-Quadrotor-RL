@@ -158,9 +158,14 @@ class VREPQuad(gym.Env):
         r, self.quad_handler        =   vrep.simxGetObjectHandle(self.clientID, self.envname, vrep.simx_opmode_oneshot_wait)
         r, self.target_handler      =   vrep.simxGetObjectHandle(self.clientID, 'Quadricopter_target', vrep.simx_opmode_oneshot_wait)
         # start pose
-
+        init_position, init_ang     =   self._get_random_pos_ang(max_radius=3.1, max_angle=np.pi, respecto=self.targetpos)
+        vrep.simxSetObjectPosition(self.clientID, self.quad_handler, -1, init_position, vrep.simx_opmode_blocking)
+        vrep.simxSetObjectOrientation(self.clientID, self.quad_handler, -1, init_ang, vrep.simx_opmode_blocking)
+        ## Set target
+        vrep.simxSetObjectPosition(self.clientID, self.target_handler, -1, self.targetpos, vrep.simx_opmode_oneshot)
+        #print('PUT>\t',init_ang)
         # Start simulation
-        print('Starting simulation')
+        #print('Starting simulation')
         #vrep.simxSynchronousTrigger(self.clientID)
         #vrep.simxGetPingTime(self.clientID)
         self.startsimulation()
@@ -173,12 +178,13 @@ class VREPQuad(gym.Env):
         vrep.simxGetPingTime(self.clientID)
         #vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
 #       
-        ## Set target
-        vrep.simxSetObjectPosition(self.clientID, self.target_handler, -1, self.targetpos, vrep.simx_opmode_oneshot)
+        
         #vrep.simxSynchronous(self.clientID, True)
         #vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
         #print('s')
         rdata = self._get_observation_state()
+        #orientation     =   vrep.simxGetObjectOrientation(self.clientID, self.quad_handler, -1, vrep.simx_opmode_oneshot_wait)
+        #print('GET>\t', orientation)
         self.prev_pos = np.asarray(rdata[1])
         # Reset parameters
         self.counterclose   =   0
@@ -258,6 +264,17 @@ class VREPQuad(gym.Env):
             x   =   np.append(x, dt, axis=0)
 
         return x
+    
+    def _get_random_pos_ang(self, max_radius = 3.2, max_angle = np.pi, respecto:np.ndarray=None):
+        if respecto is None:
+            respecto    =   np.zeros(3, dtype=np.float32)
+
+        max_radius_per_axis =   np.sqrt(max_radius * max_radius / 3.0)
+        sampledpos          =   np.random.uniform(-max_radius_per_axis, max_radius_per_axis, 3)
+        sampledangle        =   np.random.uniform(-max_angle, max_angle, 3)
+
+        return sampledpos, sampledangle
+
     
     def close(self):
         print('Exit connection')
