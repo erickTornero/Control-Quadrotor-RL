@@ -7,6 +7,8 @@ import numpy as np
 
 from utility import GetFlatRotationMatrix
 # From environment
+import sys
+#sys.path.append('.')
 import vrep
 from typing import NoReturn
 import time
@@ -54,7 +56,7 @@ class VREPQuad(gym.Env):
         print(r, self.quad_handler)
         # Define gym variables
 
-        self.action_space       =   spaces.Box(low=-np.inf, high=np.inf, shape=(4,), dtype=np.float32)
+        self.action_space       =   spaces.Box(low=-50.0, high=50.0, shape=(4,), dtype=np.float32)
 
         self.observation_space  =   spaces.Box(low=-1000.0, high=1000.0, shape=(18,), dtype=np.float32)
 
@@ -68,7 +70,7 @@ class VREPQuad(gym.Env):
     def step(self, action:np.ndarray):
         # assume of action be an np.array of dimension (4,)
         # Act!
-        action  =   np.clip(action * 28.0 + 56.0, 0.0, 100.0)
+        action  =   action + 50.0
         
         for act, name in zip(action, self.propsignal):
             vrep.simxSetFloatSignal(self.clientID, name, act, vrep.simx_opmode_streaming)

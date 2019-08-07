@@ -15,7 +15,7 @@ from stable_baselines import PPO2
 def callback(_locals, _globals):
     global n_stp
     if (n_stp + 1) % 10 == 0:
-        _locals['self'].save('ppo2_quad_second')
+        _locals['self'].save('ppo2_quad_fourth')
     n_stp = n_stp + 1
     return True
 
@@ -29,7 +29,7 @@ model.save('ppo2_quad')
 ## Get the mean
 # model.policy_proba[0] to get the mean, since it's property of policy father actor critic
 #if TRAINING==True:
-#model = PPO2.load('ppo2_quad2048', env=env)
+#model = PPO2.load('ppo2_quad_third', env=env)
 
 obs =   env.reset() 
 
@@ -44,7 +44,7 @@ while True:
     #act, _states = model.predict(obs)
     #print(act)
     #print(model.action_probability(obs)[0].squeeze(0))
-    #ct = np.clip(model.action_probability(obs)[0], 0.0, 1.0)
+    #act = model.action_probability(obs)[0]
     #print(act)
     #print('===================================')
     
