@@ -20,7 +20,7 @@ def callback(_locals, _globals):
     return True
 
 n_cpu   =   2
-env     =   SubprocVecEnv([lambda: VREPQuad(ip='192.168.0.36', port=19999) for i in range(1)])
+env     =   SubprocVecEnv([lambda: VREPQuad(ip='127.0.0.1', port=19999) for i in range(1)])
 print(env)
 
 model   =   PPO2(MlpPolicy, env, verbose=1, learning_rate=1e-3, n_steps=1024, tensorboard_log='runs')

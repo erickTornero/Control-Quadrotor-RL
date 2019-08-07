@@ -44,6 +44,9 @@ class VREPQuad(gym.Env):
         if not self._get_boolparam(vrep.sim_boolparam_headless):
             self._clear_gui()
 
+        ## Detach object target
+        r, self.target_handler      =   vrep.simxGetObjectHandle(clientID, 'Quadricopter_target', vrep.simx_opmode_oneshot_wait)
+        vrep.simxSetObjectParent(clientID, self.target_handler, -1, True, vrep.simx_opmode_oneshot_wait)
         # Set signal debug:
         vrep.simxSetIntegerSignal(self.clientID, 'signal_debug', 1337, vrep.simx_opmode_oneshot)
         r, self.quad_handler         =   vrep.simxGetObjectHandle(clientID, self.envname, vrep.simx_opmode_oneshot_wait)
@@ -150,7 +153,8 @@ class VREPQuad(gym.Env):
         except: pass
 
         # Reset quadrotor
-        r, self.quad_handler         =   vrep.simxGetObjectHandle(self.clientID, self.envname, vrep.simx_opmode_oneshot_wait)
+        r, self.quad_handler        =   vrep.simxGetObjectHandle(self.clientID, self.envname, vrep.simx_opmode_oneshot_wait)
+        r, self.target_handler      =   vrep.simxGetObjectHandle(self.clientID, 'Quadricopter_target', vrep.simx_opmode_oneshot_wait)
         # start pose
 
         # Start simulation
@@ -166,7 +170,9 @@ class VREPQuad(gym.Env):
         vrep.simxSynchronousTrigger(self.clientID)
         vrep.simxGetPingTime(self.clientID)
         #vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_blocking)
-#
+#       
+        ## Set target
+        vrep.simxSetObjectPosition(self.clientID, self.target_handler, -1, self.targetpos, vrep.simx_opmode_oneshot)
         #vrep.simxSynchronous(self.clientID, True)
         #vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
         #print('s')
