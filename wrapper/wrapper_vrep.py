@@ -25,7 +25,7 @@ class VREPQuad(gym.Env):
         # Initialize vrep
         self.envname            =   envname
         vrep.simxFinish(-1)
-        clientID                =   vrep.simxStart(ip, port, True, True, 5000, 5)
+        clientID                =   vrep.simxStart(ip, port, True, True, 5000, 0)
         if clientID != -1:
             print('Connection Established Successfully')
             self.clientID       =   clientID
@@ -56,11 +56,12 @@ class VREPQuad(gym.Env):
         print(r, self.quad_handler)
         # Define gym variables
 
-        self.action_space       =   spaces.Box(low=-50.0, high=50.0, shape=(4,), dtype=np.float32)
+        self.action_space       =   spaces.Box(low=0.0, high=100.0, shape=(4,), dtype=np.float32)
 
         self.observation_space  =   spaces.Box(low=-1000.0, high=1000.0, shape=(18,), dtype=np.float32)
 
         # Get scripts propellers Here...!
+        #self.propsignal =   ['joint' + str(i+1) for i in range(0, 4)]
         self.propsignal =   ['speedprop' + str(i+1) for i in range(0, 4)]
         
         #self.propsignal2 = 'speedprop2'
@@ -70,7 +71,7 @@ class VREPQuad(gym.Env):
     def step(self, action:np.ndarray):
         # assume of action be an np.array of dimension (4,)
         # Act!
-        action  =   action + 50.0
+        #action  =   action + 50.0
         
         for act, name in zip(action, self.propsignal):
             vrep.simxSetFloatSignal(self.clientID, name, act, vrep.simx_opmode_streaming)
@@ -283,7 +284,18 @@ class VREPQuad(gym.Env):
         time.sleep(2.5)
         #writer.close()
         vrep.simxFinish(-1)
+    
+    @property
+    def states(self):
+        return dict(shape=tuple(self.observation_space.shape), type='float')
 
+    @property
+    def actions(self):
+        return dict(type='float', shape=self.action_space.low.shape, min_value=np.float(self.action_space.low[0]), max_value=np.float(self.action_space.high[0]))
+    
+    def execute(self, action):
+        st, rw, done, _ = self.step(action)
+        return st, done, rw
 ## Test
 def TestEnv():
     env = VREPQuad(ip='192.168.0.36', port=19999)
