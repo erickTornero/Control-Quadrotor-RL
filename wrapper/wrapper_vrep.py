@@ -12,6 +12,8 @@ import sys
 import vrep
 from typing import NoReturn
 import time
+from random import gauss
+import numpy as np
 
 # if debug
 #from tensorboardX import SummaryWriter
@@ -46,7 +48,7 @@ class VREPQuad(gym.Env):
         if not self._get_boolparam(vrep.sim_boolparam_headless):
             self._clear_gui()
 
-        ## Detach object target
+        ## Detach object target_get_random_pos_ang
         r, self.target_handler      =   vrep.simxGetObjectHandle(clientID, 'Quadricopter_target', vrep.simx_opmode_oneshot_wait)
         vrep.simxSetObjectParent(clientID, self.target_handler, -1, True, vrep.simx_opmode_oneshot_wait)
         # Set signal debug:
@@ -116,18 +118,20 @@ class VREPQuad(gym.Env):
         #print(reward)
         
         #print(action)
-        done            =   (True if self.timestep >= 250 else False) | (distance > 3.2)
-        
+        #done            =   (True if self.timestep >= 250 else False) | (distance > 3.2)
+        done             =   (distance > 3.2)
         #done            =   distance > self.max_distance or self.counterclose > self.maxncounter
 
         if done:
             self.episod += 1
-            print('Episode:>\t', self.episod)
-            print('From target: {}'.format(distance))
-            print('timesteps> ',self.timestep)
-            print('Cum_rw>:', self.cumulative_rw)
-            #writer.add_scalar('data/eprw', self.cumulative_rw, self.episod)
-            #writer.add_scalar('data/dist_from_targ', distance, self.episod)
+            if self.episod % 10 == 0:
+                print('From Target> {:04.2f}'.format(distance))
+                #print('Episode:>\t{}\tFrom Target> {:04.2f}\ttimesteps> {}\t Ep Reward> {:05.2f}'.format(self.episod, distance, self.timestep, self.cumulative_rw))
+                #print('From target: {}'.format(distance))
+                #print('timesteps> ',self.timestep)
+                #print('Cum_rw>:', self.cumulative_rw)
+                #writer.add_scalar('data/eprw', self.cumulative_rw, self.episod)
+                #writer.add_scalar('data/dist_from_targ', distance, self.episod)
         return (rowdata, reward, done, dict())
 
         # Compute The reward function
@@ -189,7 +193,7 @@ class VREPQuad(gym.Env):
         self.prev_pos = np.asarray(rdata[1])
         # Reset parameters
         self.counterclose   =   0
-        self.timestep       =   0
+        #self.timestep       =   0
         self.cumulative_rw  =   0.0
         return self._appendtuples_(rdata)
 
@@ -205,7 +209,7 @@ class VREPQuad(gym.Env):
             e = vrep.simxStartSimulation(self.clientID, vrep.simx_opmode_blocking)
 
             self._set_boolparam(vrep.sim_boolparam_threaded_rendering_enabled, True)
-            print(e)
+            #print(e)
         else:
             raise ConnectionError('Any conection has been done')
     def __del__(self):
@@ -266,13 +270,17 @@ class VREPQuad(gym.Env):
 
         return x
     
+    def _getGaussVectorOrientation(self): 
+        x = [gauss(0, 0.6) for _ in range(3)]
+        return  np.asarray(x, dtype=np.float32)
+
     def _get_random_pos_ang(self, max_radius = 3.2, max_angle = np.pi, respecto:np.ndarray=None):
         if respecto is None:
             respecto    =   np.zeros(3, dtype=np.float32)
 
         max_radius_per_axis =   np.sqrt(max_radius * max_radius / 3.0)
         sampledpos          =   np.random.uniform(-max_radius_per_axis, max_radius_per_axis, 3)
-        sampledangle        =   np.random.uniform(-max_angle, max_angle, 3)
+        sampledangle        =   self._getGaussVectorOrientation()
 
         return sampledpos, sampledangle
 
